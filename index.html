@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14524A">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Mis Sesiones · Terapia</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2314524A'/%3E%3Ctext x='50' y='68' font-size='52' text-anchor='middle'%3E%F0%9F%97%93%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#F1F4F1;
+    --ink:#1C2B28;
+    --ink-soft:#5C6E69;
+    --teal:#14524A;
+    --teal-soft:#DCE9E5;
+    --amber:#B97A18;
+    --amber-soft:#FBF0DC;
+    --paper:#FFFFFF;
+    --line:#D8E0DC;
+    --ok:#2E7D4F;
+    --ok-soft:#E2F1E7;
+    --danger:#B3442E;
+    --radius:14px;
+    --shadow:0 1px 3px rgba(28,43,40,.08), 0 6px 18px rgba(28,43,40,.06);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:system-ui, Roboto, "Segoe UI", sans-serif;
+    font-size:16px;
+    line-height:1.45;
+    padding-bottom:48px;
+  }
+  .wrap{max-width:480px; margin:0 auto; padding:0 14px;}
+
+  /* ---------- Header ---------- */
+  header{
+    background:var(--teal);
+    color:#fff;
+    padding:calc(14px + env(safe-area-inset-top)) 0 14px;
+    box-shadow:var(--shadow);
+  }
+  header .wrap{display:flex; align-items:center; justify-content:space-between;}
+  header h1{
+    font-family:Georgia, "Noto Serif", serif;
+    font-size:1.25rem; font-weight:600; margin:0; letter-spacing:.2px;
+  }
+  header h1 small{display:block; font-family:system-ui,sans-serif; font-size:.72rem; font-weight:400; opacity:.75; letter-spacing:.8px; text-transform:uppercase;}
+  .icon-btn{
+    background:rgba(255,255,255,.14); border:none; color:#fff;
+    width:42px; height:42px; border-radius:12px; font-size:1.25rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .icon-btn:active{background:rgba(255,255,255,.28);}
+
+  /* ---------- Reminder banner ---------- */
+  .banner{
+    margin:14px 0 0; padding:12px 14px; border-radius:var(--radius);
+    background:var(--amber-soft); border:1px solid #EAD3A6; color:#6E4A0E;
+    display:none; gap:10px; align-items:flex-start; font-size:.93rem;
+  }
+  .banner.show{display:flex;}
+  .banner .b-ico{font-size:1.3rem; line-height:1;}
+  .banner strong{display:block; margin-bottom:2px;}
+
+  /* ---------- Month nav ---------- */
+  .month-nav{
+    display:flex; align-items:center; justify-content:space-between;
+    margin:16px 0 10px;
+  }
+  .month-nav button{
+    background:var(--paper); border:1px solid var(--line); color:var(--teal);
+    width:42px; height:42px; border-radius:12px; font-size:1.3rem; cursor:pointer;
+    box-shadow:var(--shadow);
+  }
+  .month-nav button:active{background:var(--teal-soft);}
+  .month-title{text-align:center;}
+  .month-title h2{
+    margin:0; font-family:Georgia,"Noto Serif",serif; font-size:1.3rem; font-weight:600; text-transform:capitalize;
+  }
+  .month-title .today-link{
+    background:none; border:none; color:var(--teal); font-size:.78rem; cursor:pointer;
+    text-decoration:underline; padding:2px 6px; width:auto; height:auto; box-shadow:none;
+  }
+
+  /* ---------- Calendar ---------- */
+  .cal-card{
+    background:var(--paper); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:14px 12px 16px; margin-bottom:16px;
+  }
+  .cal-hint{font-size:.8rem; color:var(--ink-soft); text-align:center; margin:0 0 10px;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+  .dow{
+    text-align:center; font-size:.7rem; font-weight:600; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:.5px; padding-bottom:4px;
+  }
+  .day{
+    aspect-ratio:1; border:1px solid transparent; border-radius:10px;
+    background:none; font-size:.95rem; color:var(--ink); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; position:relative;
+    font-family:inherit;
+  }
+  .day:not(:disabled):active{background:var(--teal-soft);}
+  .day:disabled{opacity:0; pointer-events:none;}
+  .day.other{color:#B9C4C0;}
+  .day.today{border-color:var(--teal); font-weight:700;}
+  .day.sel{
+    background:var(--teal); color:#fff; font-weight:700;
+    box-shadow:0 2px 6px rgba(20,82,74,.35);
+  }
+  .day.sel::after{
+    content:"✓"; position:absolute; top:2px; right:5px; font-size:.55rem; opacity:.85;
+  }
+  .day.sel.today{border-color:var(--amber);}
+  .day.has-note::before{
+    content:""; position:absolute; bottom:3px; left:50%; transform:translateX(-50%);
+    width:5px; height:5px; border-radius:50%; background:var(--amber);
+  }
+  .day.sel.has-note::before{background:#FFD98A;}
+
+  /* ---------- Receipt (signature element) ---------- */
+  .receipt{
+    background:var(--paper); box-shadow:var(--shadow);
+    border-radius:4px 4px 0 0; margin-bottom:2px; overflow:hidden;
+  }
+  .receipt-head{
+    background:var(--teal); color:#fff; padding:12px 16px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .receipt-head h3{
+    margin:0; font-family:Georgia,"Noto Serif",serif; font-size:1.02rem; font-weight:600;
+  }
+  .badge{
+    font-size:.7rem; font-weight:700; padding:4px 10px; border-radius:999px;
+    letter-spacing:.5px; text-transform:uppercase;
+  }
+  .badge.pend{background:var(--amber-soft); color:var(--amber);}
+  .badge.paid{background:var(--ok-soft); color:var(--ok);}
+  .receipt-body{padding:14px 16px 6px; font-variant-numeric:tabular-nums;}
+  .r-line{
+    display:flex; justify-content:space-between; padding:7px 0;
+    border-bottom:1px dashed var(--line); font-size:.93rem;
+  }
+  .r-line .d-label{color:var(--ink);}
+  .r-line .d-price{color:var(--ink-soft);}
+  .r-line .del{
+    background:none; border:none; color:var(--danger); font-size:1rem; cursor:pointer; padding:0 8px 0 0;
+  }
+  .r-item{border-bottom:1px dashed var(--line);}
+  .r-item .r-line{border-bottom:none;}
+  .note-btn{
+    background:none; border:none; cursor:pointer; font-size:1rem;
+    padding:0 0 0 10px; opacity:.4; line-height:1;
+  }
+  .note-btn.has{opacity:1;}
+  .r-note{
+    font-size:.85rem; color:#6E4A0E;
+    background:var(--amber-soft); border-left:3px solid var(--amber);
+    border-radius:0 8px 8px 0;
+    padding:6px 10px; margin:0 0 9px 20px; cursor:pointer;
+  }
+  .r-empty{color:var(--ink-soft); font-size:.9rem; text-align:center; padding:16px 0 20px;}
+  .r-sub{display:flex; justify-content:space-between; padding:9px 0 4px; font-size:.9rem; color:var(--ink-soft);}
+  .r-total{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:8px 0 12px; border-top:2px solid var(--ink); margin-top:6px;
+  }
+  .r-total .t-label{font-weight:700; letter-spacing:.5px; font-size:.85rem; text-transform:uppercase;}
+  .r-total .t-amount{
+    font-family:Georgia,"Noto Serif",serif; font-size:1.7rem; font-weight:700; color:var(--teal);
+  }
+  .receipt.is-paid .t-amount{color:var(--ok);}
+  .paid-note{font-size:.78rem; color:var(--ok); text-align:right; margin:-6px 0 10px;}
+  .receipt-actions{padding:0 16px 16px; display:flex; gap:10px;}
+  .btn{
+    flex:1; padding:12px; border-radius:12px; border:none; font-size:.95rem; font-weight:600;
+    cursor:pointer; font-family:inherit;
+  }
+  .btn-primary{background:var(--teal); color:#fff;}
+  .btn-primary:active{background:#0E3D37;}
+  .btn-ghost{background:var(--paper); color:var(--teal); border:1.5px solid var(--teal);}
+  .btn-ghost:active{background:var(--teal-soft);}
+  .btn-warn{background:var(--paper); color:var(--danger); border:1.5px solid var(--danger);}
+  .perf{
+    height:14px; margin-bottom:20px;
+    background:
+      radial-gradient(circle at 8px -4px, transparent 8px, var(--paper) 8.5px) ;
+    background-size:20px 14px; background-repeat:repeat-x;
+    filter:drop-shadow(0 3px 3px rgba(28,43,40,.07));
+  }
+
+  /* ---------- History ---------- */
+  .section-title{
+    font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:1px;
+    color:var(--ink-soft); margin:4px 2px 8px;
+  }
+  .hist-card{
+    background:var(--paper); border-radius:var(--radius); box-shadow:var(--shadow);
+    margin-bottom:24px; overflow:hidden;
+  }
+  .hist-row{
+    width:100%; display:flex; justify-content:space-between; align-items:center;
+    padding:12px 16px; border:none; background:none; font-family:inherit; font-size:.93rem;
+    border-bottom:1px solid var(--line); cursor:pointer; color:var(--ink);
+  }
+  .hist-row:last-child{border-bottom:none;}
+  .hist-row:active{background:var(--teal-soft);}
+  .hist-row .h-month{text-transform:capitalize; font-weight:600;}
+  .hist-row .h-meta{font-size:.78rem; color:var(--ink-soft);}
+  .hist-row .h-right{text-align:right; font-variant-numeric:tabular-nums;}
+  .hist-empty{padding:18px 16px; color:var(--ink-soft); font-size:.9rem; text-align:center;}
+
+  /* ---------- Settings sheet ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,35,32,.45); display:none; z-index:20;
+  }
+  .overlay.show{display:block;}
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:21;
+    background:var(--paper); border-radius:20px 20px 0 0;
+    padding:10px 18px calc(20px + env(safe-area-inset-bottom));
+    transform:translateY(105%); transition:transform .28s ease; max-height:88vh; overflow-y:auto;
+  }
+  .sheet.show{transform:translateY(0);}
+  @media (prefers-reduced-motion:reduce){ .sheet{transition:none;} }
+  .sheet-grab{width:44px; height:5px; border-radius:3px; background:var(--line); margin:4px auto 14px;}
+  .sheet h3{
+    margin:0 0 4px; font-family:Georgia,"Noto Serif",serif; font-size:1.15rem;
+  }
+  .sheet .sub{font-size:.83rem; color:var(--ink-soft); margin:0 0 16px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:.82rem; font-weight:600; margin-bottom:6px; color:var(--ink);}
+  .field .help{font-size:.76rem; color:var(--ink-soft); margin-top:4px;}
+  .field input,.field select{
+    width:100%; padding:12px; border:1.5px solid var(--line); border-radius:10px;
+    font-size:1rem; font-family:inherit; background:var(--bg); color:var(--ink);
+  }
+  .field input:focus,.field select:focus{outline:2px solid var(--teal); border-color:var(--teal);}
+  .money-input{position:relative;}
+  .money-input span{
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    color:var(--ink-soft); font-weight:600;
+  }
+  .money-input input{padding-left:30px;}
+  .divider{border:none; border-top:1px solid var(--line); margin:18px 0;}
+  .sheet .btn{width:100%; flex:none; margin-bottom:10px;}
+  .backup-row{display:flex; gap:10px;}
+  .backup-row .btn{margin-bottom:0;}
+
+  /* ---------- Toast ---------- */
+  .toast{
+    position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom));
+    transform:translate(-50%, 20px); z-index:40;
+    background:var(--ink); color:#fff; padding:11px 18px; border-radius:999px;
+    font-size:.88rem; opacity:0; pointer-events:none; transition:all .25s ease;
+    max-width:88vw; text-align:center;
+  }
+  .toast.show{opacity:1; transform:translate(-50%,0);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1><small>Registro de terapia</small>Mis Sesiones</h1>
+    <button class="icon-btn" id="btnSettings" aria-label="Ajustes" title="Ajustes">⚙️</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="banner" id="banner">
+    <div class="b-ico">🔔</div>
+    <div>
+      <strong id="bannerTitle">Recordatorio de pago</strong>
+      <span id="bannerText"></span>
+    </div>
+  </div>
+
+  <div class="month-nav">
+    <button id="prevMonth" aria-label="Mes anterior">‹</button>
+    <div class="month-title">
+      <h2 id="monthTitle">—</h2>
+      <button class="today-link" id="goToday">ir a hoy</button>
+    </div>
+    <button id="nextMonth" aria-label="Mes siguiente">›</button>
+  </div>
+
+  <div class="cal-card">
+    <p class="cal-hint">Tap: marcar sesión · Mantener presionado: comentario del día</p>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+  <div class="receipt" id="receipt">
+    <div class="receipt-head">
+      <h3 id="receiptMonth">Resumen del mes</h3>
+      <span class="badge pend" id="badge">Pendiente</span>
+    </div>
+    <div class="receipt-body" id="receiptBody"></div>
+    <div class="receipt-actions" id="receiptActions"></div>
+  </div>
+  <div class="perf"></div>
+
+  <div class="section-title">Historial</div>
+  <div class="hist-card" id="histCard"></div>
+
+</main>
+
+<!-- Settings sheet -->
+<div class="overlay" id="overlay"></div>
+<div class="sheet" id="sheet" role="dialog" aria-label="Ajustes">
+  <div class="sheet-grab"></div>
+  <h3>Ajustes</h3>
+  <p class="sub">El valor se aplica a los meses pendientes. Los meses ya pagados conservan el valor con el que se abonaron.</p>
+
+  <div class="field">
+    <label for="inpPrice">Valor de cada sesión</label>
+    <div class="money-input">
+      <span>$</span>
+      <input type="number" id="inpPrice" inputmode="decimal" min="0" step="0.01" placeholder="0">
+    </div>
+    <div class="help">En pesos argentinos (ARS).</div>
+  </div>
+
+  <div class="field">
+    <label for="inpRemDay">Día del mes para recordarte el pago</label>
+    <select id="inpRemDay"></select>
+    <div class="help">Al abrir la app ese día (o después), si el mes está impago vas a ver el aviso arriba de todo.</div>
+  </div>
+
+  <button class="btn btn-primary" id="btnSaveSettings">Guardar ajustes</button>
+
+  <hr class="divider">
+
+  <div class="field">
+    <label>Recordatorio en tu calendario</label>
+    <div class="help" style="margin-bottom:10px;">Descarga un evento que se repite todos los meses y te notifica aunque la app esté cerrada. Abrilo y agregalo a Google Calendar.</div>
+    <button class="btn btn-ghost" id="btnIcs">📅 Descargar recordatorio mensual (.ics)</button>
+  </div>
+
+  <hr class="divider">
+
+  <div class="field">
+    <label>Copia de seguridad</label>
+    <div class="help" style="margin-bottom:10px;">Los datos viven en este teléfono. Exportá un respaldo cada tanto por las dudas.</div>
+    <div class="backup-row">
+      <button class="btn btn-ghost" id="btnExport">Exportar datos</button>
+      <button class="btn btn-ghost" id="btnImport">Importar datos</button>
+    </div>
+    <input type="file" id="fileImport" accept=".json,application/json" style="display:none">
+  </div>
+</div>
+
+<!-- Note editor sheet -->
+<div class="sheet" id="noteSheet" role="dialog" aria-label="Comentario de la sesión">
+  <div class="sheet-grab"></div>
+  <h3>Comentario de la sesión</h3>
+  <p class="sub" id="noteDateLabel">—</p>
+  <div class="field">
+    <textarea id="noteText" rows="4" maxlength="500" placeholder="Ej.: llegué tarde, reprogramada del martes, tema pendiente para la próxima…"
+      style="width:100%; padding:12px; border:1.5px solid var(--line); border-radius:10px; font-size:1rem; font-family:inherit; background:var(--bg); color:var(--ink); resize:vertical;"></textarea>
+  </div>
+  <button class="btn btn-primary" id="btnSaveNote">Guardar comentario</button>
+  <button class="btn btn-warn" id="btnDeleteNote" style="display:none;">Quitar comentario</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= Persistencia ================= */
+  var KEY = "terapia_registro_v1";
+  var memStore = null; // fallback si localStorage no está disponible
+
+  function defaultData(){
+    return {
+      price: 0,
+      reminderDay: 28,
+      sessions: {},   // { "2026-07": ["2026-07-03", ...] }
+      paid: {},       // { "2026-07": { count, price, total, paidOn } }
+      notes: {}       // { "2026-07-03": "comentario de la sesión" }
+    };
+  }
+
+  function load(){
+    var d = null;
+    try{
+      var raw = localStorage.getItem(KEY);
+      if(raw){ d = JSON.parse(raw); }
+    }catch(e){ /* almacenamiento no disponible */ }
+    if(!d){ d = memStore || defaultData(); }
+    if(typeof d.notes !== "object" || d.notes === null){ d.notes = {}; } // migración v1 -> v2
+    return d;
+  }
+
+  function save(){
+    try{
+      localStorage.setItem(KEY, JSON.stringify(data));
+    }catch(e){
+      memStore = data;
+      // avisar una sola vez
+      if(!save.warned){
+        save.warned = true;
+        toast("Ojo: no se puede guardar en este navegador. Exportá tus datos antes de cerrar.");
+      }
+    }
+  }
+
+  var data = load();
+
+  /* ================= Utilidades ================= */
+  var MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  var DOWS = ["L","M","M","J","V","S","D"]; // semana empieza lunes
+
+  function pad(n){ return (n < 10 ? "0" : "") + n; }
+  function ymKey(y, m){ return y + "-" + pad(m + 1); }               // m: 0-11
+  function dKey(y, m, d){ return ymKey(y, m) + "-" + pad(d); }
+  function todayParts(){
+    var t = new Date();
+    return { y: t.getFullYear(), m: t.getMonth(), d: t.getDate() };
+  }
+  function fmtMoney(n){
+    try{
+      return new Intl.NumberFormat("es-AR", {style:"currency", currency:"ARS", maximumFractionDigits:2}).format(n);
+    }catch(e){
+      return "$ " + (Math.round(n * 100) / 100).toLocaleString("es-AR");
+    }
+  }
+  function fmtDateLong(iso){ // "2026-07-03" -> "jue 3 de julio"
+    var p = iso.split("-");
+    var dt = new Date(+p[0], +p[1] - 1, +p[2]);
+    var dows = ["dom","lun","mar","mié","jue","vie","sáb"];
+    return dows[dt.getDay()] + " " + (+p[2]) + " de " + MONTHS[+p[1] - 1];
+  }
+  function monthName(y, m){ return MONTHS[m] + " " + y; }
+
+  function getSessions(y, m){
+    return (data.sessions[ymKey(y, m)] || []).slice().sort();
+  }
+  function isPaid(y, m){ return !!data.paid[ymKey(y, m)]; }
+
+  /* ================= Estado de vista ================= */
+  var now = todayParts();
+  var view = { y: now.y, m: now.m };
+
+  /* ================= Toast ================= */
+  var toastTimer = null;
+  function toast(msg){
+    var el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.classList.remove("show"); }, 3200);
+  }
+
+  /* ================= Calendario ================= */
+  function renderCalendar(){
+    var grid = document.getElementById("calGrid");
+    grid.innerHTML = "";
+    var i;
+
+    for(i = 0; i < 7; i++){
+      var h = document.createElement("div");
+      h.className = "dow";
+      h.textContent = DOWS[i];
+      grid.appendChild(h);
+    }
+
+    var first = new Date(view.y, view.m, 1);
+    var startOffset = (first.getDay() + 6) % 7; // lunes = 0
+    var daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
+    var sess = data.sessions[ymKey(view.y, view.m)] || [];
+    var paidMonth = isPaid(view.y, view.m);
+
+    for(i = 0; i < startOffset; i++){
+      var blank = document.createElement("button");
+      blank.className = "day";
+      blank.disabled = true;
+      grid.appendChild(blank);
+    }
+
+    for(var d = 1; d <= daysInMonth; d++){
+      (function(day){
+        var key = dKey(view.y, view.m, day);
+        var btn = document.createElement("button");
+        btn.className = "day";
+        btn.textContent = day;
+        if(view.y === now.y && view.m === now.m && day === now.d){ btn.classList.add("today"); }
+        if(sess.indexOf(key) !== -1){ btn.classList.add("sel"); }
+        if(data.notes[key]){ btn.classList.add("has-note"); }
+        btn.setAttribute("aria-label", "Día " + day + (sess.indexOf(key) !== -1 ? ", sesión registrada" : ""));
+
+        // Tap corto: marcar/desmarcar sesión. Mantener presionado: ver/editar comentario.
+        var lpTimer = null, lpFired = false;
+        function lpStart(){
+          lpFired = false;
+          lpTimer = setTimeout(function(){
+            lpFired = true;
+            if(sess.indexOf(key) !== -1){
+              openNote(key);
+            }else if(data.notes[key]){
+              openNote(key);
+            }else{
+              toast("Primero marcá el día como sesión (tap corto) y después dejá presionado para comentar.");
+            }
+          }, 450);
+        }
+        function lpCancel(){ clearTimeout(lpTimer); }
+        btn.addEventListener("touchstart", lpStart, {passive:true});
+        btn.addEventListener("touchend", lpCancel);
+        btn.addEventListener("touchmove", lpCancel, {passive:true});
+        btn.addEventListener("mousedown", lpStart);
+        btn.addEventListener("mouseup", lpCancel);
+        btn.addEventListener("mouseleave", lpCancel);
+        btn.addEventListener("contextmenu", function(ev){ ev.preventDefault(); });
+
+        btn.addEventListener("click", function(){
+          if(lpFired){ lpFired = false; return; }
+          if(paidMonth){
+            toast("Este mes ya está marcado como pagado. Reabrilo desde el resumen para editarlo.");
+            return;
+          }
+          toggleSession(key);
+        });
+        grid.appendChild(btn);
+      })(d);
+    }
+
+    document.getElementById("monthTitle").textContent = monthName(view.y, view.m);
+  }
+
+  function toggleSession(key){
+    var ym = key.slice(0, 7);
+    var arr = data.sessions[ym] || (data.sessions[ym] = []);
+    var i = arr.indexOf(key);
+    if(i === -1){ arr.push(key); } else { arr.splice(i, 1); delete data.notes[key]; }
+    if(arr.length === 0){ delete data.sessions[ym]; }
+    save();
+    renderAll();
+  }
+
+  /* ================= Resumen (recibo) ================= */
+  function renderReceipt(){
+    var body = document.getElementById("receiptBody");
+    var actions = document.getElementById("receiptActions");
+    var badge = document.getElementById("badge");
+    var receipt = document.getElementById("receipt");
+    var sess = getSessions(view.y, view.m);
+    var paidInfo = data.paid[ymKey(view.y, view.m)];
+
+    document.getElementById("receiptMonth").textContent = "Resumen · " + MONTHS[view.m];
+
+    body.innerHTML = "";
+    actions.innerHTML = "";
+    receipt.classList.toggle("is-paid", !!paidInfo);
+
+    if(paidInfo){
+      badge.textContent = "Pagado";
+      badge.className = "badge paid";
+    }else{
+      badge.textContent = "Pendiente";
+      badge.className = "badge pend";
+    }
+
+    var priceUsed = paidInfo ? paidInfo.price : data.price;
+
+    if(sess.length === 0){
+      var empty = document.createElement("div");
+      empty.className = "r-empty";
+      empty.textContent = "Todavía no registraste sesiones este mes. Tocá un día del calendario para empezar.";
+      body.appendChild(empty);
+      return;
+    }
+
+    sess.forEach(function(iso){
+      var item = document.createElement("div");
+      item.className = "r-item";
+
+      var line = document.createElement("div");
+      line.className = "r-line";
+      var left = document.createElement("span");
+      left.className = "d-label";
+      if(!paidInfo){
+        var del = document.createElement("button");
+        del.className = "del";
+        del.textContent = "✕";
+        del.setAttribute("aria-label", "Quitar sesión del " + fmtDateLong(iso));
+        del.addEventListener("click", function(){ toggleSession(iso); });
+        left.appendChild(del);
+      }
+      left.appendChild(document.createTextNode(fmtDateLong(iso)));
+
+      var right = document.createElement("span");
+      right.className = "d-price";
+      right.textContent = fmtMoney(priceUsed);
+
+      var note = data.notes[iso] || "";
+      var nBtn = document.createElement("button");
+      nBtn.className = "note-btn" + (note ? " has" : "");
+      nBtn.textContent = "💬";
+      nBtn.setAttribute("aria-label", (note ? "Editar" : "Agregar") + " comentario de la sesión del " + fmtDateLong(iso));
+      nBtn.addEventListener("click", function(){ openNote(iso); });
+
+      line.appendChild(left);
+      line.appendChild(right);
+      line.appendChild(nBtn);
+      item.appendChild(line);
+
+      if(note){
+        var nDiv = document.createElement("div");
+        nDiv.className = "r-note";
+        nDiv.textContent = note;
+        nDiv.addEventListener("click", function(){ openNote(iso); });
+        item.appendChild(nDiv);
+      }
+      body.appendChild(item);
+    });
+
+    var sub = document.createElement("div");
+    sub.className = "r-sub";
+    sub.innerHTML = "<span>" + sess.length + (sess.length === 1 ? " sesión" : " sesiones") +
+                    " × " + fmtMoney(priceUsed) + "</span>";
+    body.appendChild(sub);
+
+    var total = sess.length * priceUsed;
+    var tot = document.createElement("div");
+    tot.className = "r-total";
+    tot.innerHTML = "<span class='t-label'>Total a abonar</span><span class='t-amount'>" + fmtMoney(total) + "</span>";
+    body.appendChild(tot);
+
+    if(paidInfo){
+      var note = document.createElement("div");
+      note.className = "paid-note";
+      note.textContent = "✓ Pagado el " + fmtDateLong(paidInfo.paidOn);
+      body.appendChild(note);
+    }
+
+    if(data.price === 0 && !paidInfo){
+      var warn = document.createElement("div");
+      warn.className = "r-empty";
+      warn.innerHTML = "⚠️ Configurá el valor de la sesión en <b>Ajustes</b> (⚙️) para calcular el total.";
+      body.appendChild(warn);
+    }
+
+    // Acciones
+    if(!paidInfo){
+      var btnPay = document.createElement("button");
+      btnPay.className = "btn btn-primary";
+      btnPay.textContent = "Marcar como pagado";
+      btnPay.addEventListener("click", function(){ markPaid(); });
+      actions.appendChild(btnPay);
+    }else{
+      var btnReopen = document.createElement("button");
+      btnReopen.className = "btn btn-warn";
+      btnReopen.textContent = "Reabrir mes (deshacer pago)";
+      btnReopen.addEventListener("click", function(){
+        if(confirm("¿Reabrir " + monthName(view.y, view.m) + "? Vuelve a quedar pendiente y el total se recalcula con el valor actual.")){
+          delete data.paid[ymKey(view.y, view.m)];
+          save();
+          renderAll();
+        }
+      });
+      actions.appendChild(btnReopen);
+    }
+  }
+
+  function markPaid(){
+    var sess = getSessions(view.y, view.m);
+    if(sess.length === 0){ toast("No hay sesiones registradas este mes."); return; }
+    if(data.price === 0){
+      toast("Primero configurá el valor de la sesión en Ajustes.");
+      openSheet();
+      return;
+    }
+    var total = sess.length * data.price;
+    if(!confirm("Confirmar pago de " + monthName(view.y, view.m) + ":\n" +
+                sess.length + (sess.length === 1 ? " sesión" : " sesiones") + " × " + fmtMoney(data.price) +
+                " = " + fmtMoney(total))){ return; }
+    var t = todayParts();
+    data.paid[ymKey(view.y, view.m)] = {
+      count: sess.length,
+      price: data.price,
+      total: total,
+      paidOn: dKey(t.y, t.m, t.d)
+    };
+    save();
+    renderAll();
+    toast("Mes marcado como pagado ✓");
+  }
+
+  /* ================= Historial ================= */
+  function renderHistory(){
+    var card = document.getElementById("histCard");
+    card.innerHTML = "";
+
+    var months = {};
+    Object.keys(data.sessions).forEach(function(k){ months[k] = true; });
+    Object.keys(data.paid).forEach(function(k){ months[k] = true; });
+    var keys = Object.keys(months).sort().reverse();
+
+    if(keys.length === 0){
+      var e = document.createElement("div");
+      e.className = "hist-empty";
+      e.textContent = "Acá va a aparecer el resumen de cada mes.";
+      card.appendChild(e);
+      return;
+    }
+
+    keys.forEach(function(k){
+      var y = +k.slice(0, 4), m = +k.slice(5, 7) - 1;
+      var paidInfo = data.paid[k];
+      var count = paidInfo ? paidInfo.count : (data.sessions[k] || []).length;
+      var price = paidInfo ? paidInfo.price : data.price;
+      var total = paidInfo ? paidInfo.total : count * price;
+
+      var row = document.createElement("button");
+      row.className = "hist-row";
+      row.innerHTML =
+        "<span><span class='h-month'>" + monthName(y, m) + "</span><br>" +
+        "<span class='h-meta'>" + count + (count === 1 ? " sesión" : " sesiones") +
+        (paidInfo ? " · pagado ✓" : " · pendiente") + "</span></span>" +
+        "<span class='h-right'><b>" + fmtMoney(total) + "</b></span>";
+      row.addEventListener("click", function(){
+        view.y = y; view.m = m;
+        renderAll();
+        window.scrollTo({top: 0, behavior: "smooth"});
+      });
+      card.appendChild(row);
+    });
+  }
+
+  /* ================= Recordatorio ================= */
+  function renderBanner(){
+    var banner = document.getElementById("banner");
+    var t = todayParts();
+    var kNow = ymKey(t.y, t.m);
+    var sessNow = data.sessions[kNow] || [];
+    var pending = sessNow.length > 0 && !data.paid[kNow];
+
+    // También avisar meses anteriores impagos con sesiones
+    var oldPending = Object.keys(data.sessions).filter(function(k){
+      return k < kNow && !data.paid[k] && data.sessions[k].length > 0;
+    });
+
+    var show = false, text = "";
+    if(oldPending.length > 0){
+      show = true;
+      var k = oldPending[0];
+      var y = +k.slice(0, 4), m = +k.slice(5, 7) - 1;
+      var c = data.sessions[k].length;
+      text = "Tenés pendiente el pago de " + monthName(y, m) + " (" + c + (c === 1 ? " sesión" : " sesiones") +
+             (data.price > 0 ? ", " + fmtMoney(c * data.price) : "") + ").";
+    }else if(pending && t.d >= data.reminderDay){
+      show = true;
+      text = "Llegó el día de pago: este mes fuiste a " + sessNow.length +
+             (sessNow.length === 1 ? " sesión" : " sesiones") +
+             (data.price > 0 ? " — total " + fmtMoney(sessNow.length * data.price) : "") + ".";
+    }
+
+    document.getElementById("bannerText").textContent = text;
+    banner.classList.toggle("show", show);
+  }
+
+  function downloadIcs(){
+    var day = data.reminderDay;
+    var t = todayParts();
+    // Próxima ocurrencia
+    var start = new Date(t.y, t.m, day, 10, 0, 0);
+    if(start < new Date()){ start = new Date(t.y, t.m + 1, day, 10, 0, 0); }
+    function icsDate(dt){
+      return dt.getFullYear() + pad(dt.getMonth() + 1) + pad(dt.getDate()) + "T" +
+             pad(dt.getHours()) + pad(dt.getMinutes()) + "00";
+    }
+    var end = new Date(start.getTime() + 30 * 60000);
+    var ics = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//MisSesiones//Terapia//ES",
+      "BEGIN:VEVENT",
+      "UID:pago-terapia-" + Date.now() + "@missesiones",
+      "DTSTAMP:" + icsDate(new Date()),
+      "DTSTART:" + icsDate(start),
+      "DTEND:" + icsDate(end),
+      "RRULE:FREQ=MONTHLY;BYMONTHDAY=" + day,
+      "SUMMARY:💚 Pagar sesiones de terapia",
+      "DESCRIPTION:Abrí la app Mis Sesiones para ver el total del mes.",
+      "BEGIN:VALARM",
+      "TRIGGER:-PT0M",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:Pagar sesiones de terapia",
+      "END:VALARM",
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ].join("\r\n");
+    var blob = new Blob([ics], {type: "text/calendar"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "recordatorio-pago-terapia.ics";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast("Abrí el archivo descargado para agregarlo a tu calendario.");
+  }
+
+  /* ================= Comentarios ================= */
+  var noteSheet = document.getElementById("noteSheet");
+  var noteCurrent = null;
+
+  function openNote(iso){
+    noteCurrent = iso;
+    document.getElementById("noteDateLabel").textContent = "Sesión del " + fmtDateLong(iso);
+    var txt = document.getElementById("noteText");
+    txt.value = data.notes[iso] || "";
+    document.getElementById("btnDeleteNote").style.display = data.notes[iso] ? "block" : "none";
+    overlay.classList.add("show");
+    noteSheet.classList.add("show");
+    setTimeout(function(){ txt.focus(); }, 320);
+  }
+  function closeNote(){
+    overlay.classList.remove("show");
+    noteSheet.classList.remove("show");
+    noteCurrent = null;
+  }
+  document.getElementById("btnSaveNote").addEventListener("click", function(){
+    if(!noteCurrent){ return; }
+    var v = document.getElementById("noteText").value.trim();
+    if(v){ data.notes[noteCurrent] = v; }
+    else { delete data.notes[noteCurrent]; }
+    save();
+    closeNote();
+    renderAll();
+    toast(v ? "Comentario guardado ✓" : "Comentario quitado");
+  });
+  document.getElementById("btnDeleteNote").addEventListener("click", function(){
+    if(!noteCurrent){ return; }
+    delete data.notes[noteCurrent];
+    save();
+    closeNote();
+    renderAll();
+    toast("Comentario quitado");
+  });
+
+  /* ================= Ajustes ================= */
+  var sheet = document.getElementById("sheet");
+  var overlay = document.getElementById("overlay");
+
+  function openSheet(){
+    document.getElementById("inpPrice").value = data.price || "";
+    var sel = document.getElementById("inpRemDay");
+    if(sel.options.length === 0){
+      for(var d = 1; d <= 28; d++){
+        var o = document.createElement("option");
+        o.value = d;
+        o.textContent = "Día " + d + (d === 28 ? " (recomendado)" : "");
+        sel.appendChild(o);
+      }
+      var oLast = document.createElement("option");
+      oLast.value = 31;
+      oLast.textContent = "Último día del mes";
+      sel.appendChild(oLast);
+    }
+    sel.value = data.reminderDay;
+    overlay.classList.add("show");
+    sheet.classList.add("show");
+  }
+  function closeSheet(){
+    overlay.classList.remove("show");
+    sheet.classList.remove("show");
+  }
+
+  document.getElementById("btnSettings").addEventListener("click", openSheet);
+  overlay.addEventListener("click", function(){ closeSheet(); closeNote(); });
+
+  document.getElementById("btnSaveSettings").addEventListener("click", function(){
+    var p = parseFloat(document.getElementById("inpPrice").value);
+    if(isNaN(p) || p < 0){
+      toast("Ingresá un valor de sesión válido.");
+      return;
+    }
+    data.price = p;
+    data.reminderDay = parseInt(document.getElementById("inpRemDay").value, 10) || 28;
+    save();
+    closeSheet();
+    renderAll();
+    toast("Ajustes guardados ✓");
+  });
+
+  document.getElementById("btnIcs").addEventListener("click", downloadIcs);
+
+  /* ---- Backup ---- */
+  document.getElementById("btnExport").addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+    var a = document.createElement("a");
+    var t = todayParts();
+    a.href = URL.createObjectURL(blob);
+    a.download = "sesiones-terapia-backup-" + dKey(t.y, t.m, t.d) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast("Respaldo exportado ✓");
+  });
+
+  document.getElementById("btnImport").addEventListener("click", function(){
+    document.getElementById("fileImport").click();
+  });
+  document.getElementById("fileImport").addEventListener("change", function(ev){
+    var f = ev.target.files[0];
+    if(!f){ return; }
+    var r = new FileReader();
+    r.onload = function(){
+      try{
+        var d = JSON.parse(r.result);
+        if(typeof d !== "object" || d === null || typeof d.sessions !== "object"){
+          throw new Error("formato");
+        }
+        if(!confirm("Esto reemplaza los datos actuales por los del respaldo. ¿Continuar?")){ return; }
+        data = {
+          price: typeof d.price === "number" ? d.price : 0,
+          reminderDay: typeof d.reminderDay === "number" ? d.reminderDay : 28,
+          sessions: d.sessions || {},
+          paid: d.paid || {},
+          notes: (typeof d.notes === "object" && d.notes !== null) ? d.notes : {}
+        };
+        save();
+        closeSheet();
+        renderAll();
+        toast("Datos importados ✓");
+      }catch(e){
+        toast("El archivo no es un respaldo válido de esta app.");
+      }
+    };
+    r.readAsText(f);
+    ev.target.value = "";
+  });
+
+  /* ================= Navegación ================= */
+  document.getElementById("prevMonth").addEventListener("click", function(){
+    view.m--;
+    if(view.m < 0){ view.m = 11; view.y--; }
+    renderAll();
+  });
+  document.getElementById("nextMonth").addEventListener("click", function(){
+    view.m++;
+    if(view.m > 11){ view.m = 0; view.y++; }
+    renderAll();
+  });
+  document.getElementById("goToday").addEventListener("click", function(){
+    now = todayParts();
+    view.y = now.y; view.m = now.m;
+    renderAll();
+  });
+
+  /* ================= Render maestro ================= */
+  function renderAll(){
+    now = todayParts();
+    renderCalendar();
+    renderReceipt();
+    renderHistory();
+    renderBanner();
+  }
+
+  renderAll();
+
+  // Registrar service worker (solo en https, para la versión publicada como PWA)
+  if("serviceWorker" in navigator && location.protocol === "https:"){
+    navigator.serviceWorker.register("sw.js").catch(function(){ /* reintenta en la próxima apertura */ });
+  }
+
+  // Primera vez: invitar a configurar el valor
+  if(data.price === 0 && Object.keys(data.sessions).length === 0 && Object.keys(data.paid).length === 0){
+    setTimeout(function(){
+      toast("¡Bienvenido! Empezá configurando el valor de la sesión en ⚙️ Ajustes.");
+    }, 600);
+  }
+})();
+</script>
+</body>
+</html>
