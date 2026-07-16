@@ -1,5 +1,5 @@
 /* Service worker: cachea la app para que funcione sin internet */
-const CACHE = "mis-sesiones-v3";
+const CACHE = "mis-sesiones-v4";
 const FILES = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {

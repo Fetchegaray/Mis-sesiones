@@ -353,6 +353,7 @@
       <button class="btn btn-ghost" id="btnExport">Exportar datos</button>
       <button class="btn btn-ghost" id="btnImport">Importar datos</button>
     </div>
+    <div class="help" id="storageStatus" style="margin-top:10px;"></div>
     <input type="file" id="fileImport" accept=".json,application/json" style="display:none">
   </div>
 </div>
@@ -380,6 +381,38 @@
   var KEY = "terapia_registro_v1";
   var memStore = null; // fallback si localStorage no está disponible
 
+  /* --- Espejo en IndexedDB: si localStorage se borra, se recupera de acá --- */
+  function idbOpen(){
+    return new Promise(function(res, rej){
+      try{
+        var r = indexedDB.open("terapia_db", 1);
+        r.onupgradeneeded = function(){ r.result.createObjectStore("kv"); };
+        r.onsuccess = function(){ res(r.result); };
+        r.onerror = function(){ rej(r.error); };
+      }catch(e){ rej(e); }
+    });
+  }
+  function idbSet(obj){
+    return idbOpen().then(function(db){
+      return new Promise(function(res, rej){
+        var tx = db.transaction("kv", "readwrite");
+        tx.objectStore("kv").put(JSON.stringify(obj), "data");
+        tx.oncomplete = function(){ res(); };
+        tx.onerror = function(){ rej(tx.error); };
+      });
+    });
+  }
+  function idbGet(){
+    return idbOpen().then(function(db){
+      return new Promise(function(res, rej){
+        var tx = db.transaction("kv", "readonly");
+        var rq = tx.objectStore("kv").get("data");
+        rq.onsuccess = function(){ res(rq.result ? JSON.parse(rq.result) : null); };
+        rq.onerror = function(){ rej(rq.error); };
+      });
+    });
+  }
+
   function defaultData(){
     return {
       price: 0,
@@ -402,19 +435,47 @@
   }
 
   function save(){
+    data.updatedAt = Date.now();
     try{
       localStorage.setItem(KEY, JSON.stringify(data));
     }catch(e){
       memStore = data;
-      // avisar una sola vez
       if(!save.warned){
         save.warned = true;
         toast("Ojo: no se puede guardar en este navegador. Exportá tus datos antes de cerrar.");
       }
     }
+    idbSet(data).catch(function(){ /* espejo no disponible; localStorage sigue activo */ });
   }
 
   var data = load();
+
+  /* --- Recuperación: si el espejo (IndexedDB) tiene datos más nuevos o localStorage quedó vacío, restaurar --- */
+  var storagePersisted = null; // para mostrar estado en Ajustes
+  function hasContent(d){
+    return d && (Object.keys(d.sessions || {}).length > 0 || Object.keys(d.paid || {}).length > 0 || (d.price || 0) > 0);
+  }
+  idbGet().then(function(mirror){
+    if(!mirror){ if(hasContent(data)){ idbSet(data).catch(function(){}); } return; }
+    if(typeof mirror.notes !== "object" || mirror.notes === null){ mirror.notes = {}; }
+    var tLocal = data.updatedAt || 0, tMirror = mirror.updatedAt || 0;
+    if((!hasContent(data) && hasContent(mirror)) || (tMirror > tLocal && hasContent(mirror))){
+      data = mirror;
+      try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){}
+      renderAll();
+      toast("Datos recuperados del respaldo interno ✓");
+    }else if(hasContent(data) && tLocal > tMirror){
+      idbSet(data).catch(function(){});
+    }
+  }).catch(function(){ /* IndexedDB no disponible */ });
+
+  /* --- Pedir al navegador almacenamiento persistente (evita que borre los datos para liberar espacio) --- */
+  if(navigator.storage && navigator.storage.persist){
+    navigator.storage.persisted().then(function(p){
+      if(p){ storagePersisted = true; return true; }
+      return navigator.storage.persist().then(function(ok){ storagePersisted = ok; });
+    }).catch(function(){ storagePersisted = false; });
+  }
 
   /* ================= Utilidades ================= */
   var MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
@@ -750,7 +811,7 @@
       return k < kNow && !data.paid[k] && data.sessions[k].length > 0;
     });
 
-    var show = false, text = "";
+    var show = false, text = "", icon = "🔔", title = "Recordatorio de pago";
     if(oldPending.length > 0){
       show = true;
       var k = oldPending[0];
@@ -763,8 +824,25 @@
       text = "Llegó el día de pago: este mes fuiste a " + sessNow.length +
              (sessNow.length === 1 ? " sesión" : " sesiones") +
              (data.price > 0 ? " — total " + fmtMoney(sessNow.length * data.price) : "") + ".";
+    }else{
+      // Aviso de respaldo: con datos cargados y sin exportar hace más de 30 días
+      var hasData = Object.keys(data.sessions).length > 0 || Object.keys(data.paid).length > 0;
+      var days = 999;
+      if(data.lastExport){
+        var p = data.lastExport.split("-");
+        days = Math.floor((new Date(t.y, t.m, t.d) - new Date(+p[0], +p[1] - 1, +p[2])) / 86400000);
+      }
+      if(hasData && days > 30){
+        show = true;
+        icon = "💾";
+        title = "Respaldo recomendado";
+        text = (data.lastExport ? "Pasaron más de 30 días desde tu último respaldo. " : "") +
+               "Entrá a ⚙️ Ajustes → Exportar datos y guardá el archivo en tu Drive.";
+      }
     }
 
+    document.getElementById("bannerTitle").textContent = title;
+    document.querySelector("#banner .b-ico").textContent = icon;
     document.getElementById("bannerText").textContent = text;
     banner.classList.toggle("show", show);
   }
@@ -868,6 +946,18 @@
       sel.appendChild(oLast);
     }
     sel.value = data.reminderDay;
+
+    var st = document.getElementById("storageStatus");
+    var persistTxt = storagePersisted === true
+      ? "🔒 Almacenamiento protegido: el navegador se comprometió a no borrar tus datos."
+      : (storagePersisted === false
+        ? "⚠️ El navegador no garantiza conservar los datos si necesita liberar espacio. Exportá respaldos seguido."
+        : "Verificando estado del almacenamiento…");
+    var expTxt = data.lastExport
+      ? "Último respaldo exportado: " + fmtDateLong(data.lastExport) + "."
+      : "Todavía no exportaste ningún respaldo.";
+    st.innerHTML = persistTxt + "<br>" + expTxt;
+
     overlay.classList.add("show");
     sheet.classList.add("show");
   }
@@ -897,14 +987,17 @@
 
   /* ---- Backup ---- */
   document.getElementById("btnExport").addEventListener("click", function(){
+    var t = todayParts();
+    data.lastExport = dKey(t.y, t.m, t.d);
+    save();
     var blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
     var a = document.createElement("a");
-    var t = todayParts();
     a.href = URL.createObjectURL(blob);
     a.download = "sesiones-terapia-backup-" + dKey(t.y, t.m, t.d) + ".json";
     document.body.appendChild(a);
     a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    renderAll();
     toast("Respaldo exportado ✓");
   });
 
